@@ -1,0 +1,158 @@
+# AutoBarMaid_back
+
+## Requirements
+- Python > 3.9 (3.10 is best)
+- Libraries :
+    - websocket_server ([https://github.com/Pithikos/python-websocket-server](https://github.com/Pithikos/python-websocket-server) : pip install websocket-server)
+- :warning: Has to be run on a Raspberry PI (V2, V3 or V4), due to usage of the GPIO library :warning:
+
+## Communication protocol
+### Websocket :
+- Address : 0.0.0.0
+- Port : 8765
+### Message format
+- Example : {"type": "echo", "data": "anything"}
+
+## Global infos
+- 8 pump : from 0 to 7
+- Blocking action are actions that can't be parallelized or multiples at the same time. However, non-blocking actions can still be done.
+
+## Message types
+### From Gui
+- `blend`
+    - Description
+        - Blocking action
+        - Run a blend action for given time depending on cup_size
+        - Periodically send messages of type "status" while blending
+    - Data : `{"cup_size": number, "ratios": {"0": number, "4": number, ...}}`
+        - cup_size in liter
+        - not used liquid can be omitted
+        - ratio for each liquid (0.0->1.0) (sum not checked)
+    - Example : `{"type": "blend", "data": {"cup_size": 0.04, "ratios": {"0": 0.2, "1": 0.1, "4": 0.7}}}`
+- `faster_blend`
+    - Description
+        - Same as `blend` but tries to go faster.
+    - Data : `{"cup_size": number, "ratios": {"0": number, "4": number, ...}}`
+    - Example : `{"type": "faster_blend", "data": {"cup_size": 0.04, "ratios": {"0": 0.2, "1": 0.1, "4": 0.7}}}`
+- `echo`
+    - Description : echo anything sent
+    - Data : anything
+    - Example : `{"type": "echo", "data": {"msg": "toaster"}}`
+- `get_pumps_states`
+    - Description
+        - get current pumps states
+        - receive a "pumps_states" message when done
+    - Data : none
+    - Example : `{"type": "get_pumps_states"}`
+- `set_pump_state`
+    - Description
+        - set a pump state
+        - receive a "pumps_states" message when done
+    - Data : `{"pump_index": integer, "state": bool}`
+    - Example : `{'type': 'set_pump_state', 'data': {'pump_index': 0, 'state': false}}`
+- `set_sec_per_liter`
+    - Description
+        - :warning: only for configuration purposes :warning:
+        - set the global "sec_per_liter" value
+        - receive a "sec_per_liter" message when done
+    - Data : `{'sec_per_liter': integer}`
+    - Example : `{'type': 'set_sec_per_liter', 'data': {'sec_per_liter': 666}}`
+- `get_config`
+    - Description
+        - :warning: only for configuration purposes :warning:
+        - return global config
+        - receive a "config" message when done
+    - Data : None
+    - Example : `{'type': 'get_config'}`
+- `get_blend_status`
+    - Description
+        - get the current blend status
+        - receive a "status" message when done
+    - Data : None
+    - Example : `{'type': 'get_blend_status'}`
+- `set_pump_speed_ratio`
+    - Description
+        - :warning: only for configuration purposes :warning:
+        - set a pump speed ratio
+        - if the flow is slower than other pumps, try to set a higher value
+    - Data : `{'pump_index': integer, 'speed_ratio': float}`
+    - Example : `{'type': 'set_pump_speed_ratio', 'data': {'pump_index': 0, 'speed_ratio': 1.3}}`
+- `tare_cell`
+    - Description
+        - Tares the weight cell for a specific pump.
+    - Data: `{'pump_index': integer}`
+    - Example: `{'type': 'tare_cell', 'data': {'pump_index': 0}}`
+- `tare_all_cell`
+    - Description
+        - Tares all connected weight cells.
+    - Data: None
+    - Example: `{'type': 'tare_all_cell'}`
+- `read_weight`
+    - Description
+        - Reads the weight from a specific pump's weight cell.
+    - Data: `{'pump_index': integer}`
+    - Example: `{'type': 'read_weight', 'data': {'pump_index': 0}}`
+- `read_all_weights`
+    - Description
+        - Reads the weight from all connected weight cells.
+    - Data: None
+    - Example: `{'type': 'read_all_weights'}`
+- `get_all_weights`
+    - Description
+        - Gets the last read weights for all pumps.
+    - Data: None
+    - Example: `{'type': 'get_all_weights'}`
+
+### From server
+- `status`
+    - Description
+        - Blending status
+        - Sent periodically while blending
+    - Data : `{"initial_time": integer, "remaining_time": integer}`
+        - initial_time in seconds
+        - remaining_time in seconds to the end
+    - Example : `{"type": "status", "data": {"initial_time": 10, "remaining_time": 2}}`
+- `echo`
+    - Description : echo from an echo message
+    - Data : original sent data
+    - Example : `{"type": "echo", "data": {"msg": "toaster"}}`
+- `error`
+    - Description : message sent if anything goes wrong/unexpected
+    - Data : `{"msg": string}`
+    - Example : `{"type": "error", "data": {"msg": "Already blending ! Retry in 3 sec"}}`
+- `pumps_states`
+    - Description : current status of all pumps
+    - Data : list
+    - Example : `{"type": "pumps_states", "data": [{"enabled": true, "refill_time": 2}, ...]}`
+- `sec_per_liter`
+    - Description : get the current "sec_per_liter" config
+    - Data : integer
+    - Example : `{"type": "sec_per_liter", "data": 666}`
+- `config`
+    - Description : get the global config
+    - Data : object
+    - Example : `{"type": "config", "data": {"pumps": [...], "sec_per_liter": 666}}`
+- `tare_cell`
+    - Description: Confirmation that a weight cell has been tared.
+    - Data: `{"pump_index": integer}`
+    - Example: `{"type": "tare_cell", "data": {"pump_index": 0}}`
+- `tare_all_cell`
+    - Description: Confirmation that all weight cells have been tared.
+    - Data: {}
+    - Example: `{"type": "tare_all_cell", "data": {}}`
+- `read_weight`
+    - Description: Response to a weight read request.
+    - Data: `{"pump_index": integer}`
+    - Example: `{"type": "read_weight", "data": {"pump_index": 0}}`
+- `read_all_weights`
+    - Description: Response to a request to read all weights.
+    - Data: {}
+    - Example: `{"type": "read_all_weights", "data": {}}`
+- `get_all_weights`
+    - Description: The current weights for all pumps.
+    - Data: `object`
+    - Example: `{"type": "get_all_weights", "data": {"0": 100, "1": 150}}`
+- `unknown_message_type`
+    - Description: Sent when the server receives a message with an unknown `type`.
+    - Data: `{"message": string}`
+    - Example: `{"type": "unknown_message_type", "data": {"message": "given message type 'my_action' is unknown"}}`

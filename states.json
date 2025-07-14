@@ -1,0 +1,23 @@
+{
+  "pumps": [
+    {"enabled": true, "delay_for_distance": 2, "speed_ratio": 1.0},
+    {"enabled": true, "delay_for_distance": 2, "speed_ratio": 1.0},
+    {"enabled": true, "delay_for_distance": 3, "speed_ratio": 1.0},
+    {"enabled": true, "delay_for_distance": 3, "speed_ratio": 1.0},
+    {"enabled": true, "delay_for_distance": 4, "speed_ratio": 1.0},
+    {"enabled": true, "delay_for_distance": 4, "speed_ratio": 1.0},
+    {"enabled": true, "delay_for_distance": 5, "speed_ratio": 1.0},
+    {"enabled": true, "delay_for_distance": 5, "speed_ratio": 1.0}
+  ],
+  "weight_cells": [
+    {"offset":  0, "reference_unit": 203},
+    {"offset":  0, "reference_unit": 203},
+    {"offset":  0, "reference_unit": 203},
+    {"offset":  0, "reference_unit": 203},
+    {"offset":  0, "reference_unit": 203},
+    {"offset":  0, "reference_unit": 203},
+    {"offset":  0, "reference_unit": 203},
+    {"offset":  0, "reference_unit": 203}
+  ],
+  "sec_per_liter": 90
+}
