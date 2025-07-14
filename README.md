@@ -49,59 +49,60 @@
         - set a pump state
         - receive a "pumps_states" message when done
     - Data : `{"pump_index": integer, "state": bool}`
-    - Example : `{'type': 'set_pump_state', 'data': {'pump_index': 0, 'state': false}}`
+    - Example : `{"type": "set_pump_state", "data": {"pump_index": 0, "state": false}}`
 - `set_sec_per_liter`
     - Description
         - :warning: only for configuration purposes :warning:
         - set the global "sec_per_liter" value
         - receive a "sec_per_liter" message when done
-    - Data : `{'sec_per_liter': integer}`
-    - Example : `{'type': 'set_sec_per_liter', 'data': {'sec_per_liter': 666}}`
+    - Data : `{"sec_per_liter": integer}`
+    - Example : `{"type": "set_sec_per_liter", "data": {"sec_per_liter": 666}}`
 - `get_config`
     - Description
         - :warning: only for configuration purposes :warning:
         - return global config
         - receive a "config" message when done
     - Data : None
-    - Example : `{'type': 'get_config'}`
+    - Example : `{"type": "get_config"}`
 - `get_blend_status`
     - Description
         - get the current blend status
         - receive a "status" message when done
     - Data : None
-    - Example : `{'type': 'get_blend_status'}`
+    - Example : `{"type": "get_blend_status"}`
 - `set_pump_speed_ratio`
     - Description
         - :warning: only for configuration purposes :warning:
         - set a pump speed ratio
         - if the flow is slower than other pumps, try to set a higher value
-    - Data : `{'pump_index': integer, 'speed_ratio': float}`
-    - Example : `{'type': 'set_pump_speed_ratio', 'data': {'pump_index': 0, 'speed_ratio': 1.3}}`
+    - Data : `{"pump_index": integer, "speed_ratio": float}`
+    - Example : `{"type": "set_pump_speed_ratio", "data": {"pump_index": 0, "speed_ratio": 1.3}}`
 - `tare_cell`
     - Description
         - Tares the weight cell for a specific pump.
-    - Data: `{'pump_index': integer}`
-    - Example: `{'type': 'tare_cell', 'data': {'pump_index': 0}}`
+    - Data: `{"pump_index": integer}`
+    - Example: `{"type": "tare_cell", "data": {"pump_index": 0}}`
 - `tare_all_cell`
     - Description
         - Tares all connected weight cells.
     - Data: None
-    - Example: `{'type': 'tare_all_cell'}`
+    - Example: `{"type": "tare_all_cell"}`
 - `read_weight`
     - Description
         - Reads the weight from a specific pump's weight cell.
-    - Data: `{'pump_index': integer}`
-    - Example: `{'type': 'read_weight', 'data': {'pump_index': 0}}`
+    - Data: `{"pump_index": integer}`
+    - Example: `{"type": "read_weight", "data": {"pump_index": 0}}`
 - `read_all_weights`
     - Description
         - Reads the weight from all connected weight cells.
     - Data: None
-    - Example: `{'type': 'read_all_weights'}`
+    - Example: `{"type": "read_all_weights"}`
 - `get_all_weights`
     - Description
         - Gets the last read weights for all pumps.
     - Data: None
-    - Example: `{'type': 'get_all_weights'}`
+    - Example: `{"type": "get_all_weights"}`
+
 
 ### From server
 - `status`
