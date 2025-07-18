@@ -44,9 +44,9 @@ def aatest_module_weight():
 
 
 if __name__ == '__main__':
-    # aatest_cell()
+    aatest_cell()
     # aatest_module()
-    aatest_module_weight()
+    # aatest_module_weight()
 
     """a = [1,2,3,4,5]
     print(a)

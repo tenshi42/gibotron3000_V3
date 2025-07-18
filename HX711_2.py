@@ -200,6 +200,8 @@ class HX711:
         for x in range(times):
             valueList += [self.read_long()]
 
+        print(valueList)
+
         valueList.sort()
 
         # If times is odd we can just take the centre value.
@@ -208,8 +210,12 @@ class HX711:
         else:
             # If times is even we have to take the arithmetic mean of
             # the two middle values.
-            midpoint = len(valueList) / 2
-            return sum(valueList[midpoint:midpoint + 2]) / 2.0
+            valueList = list(filter(lambda x: x > 0, valueList))
+            midpoint = int(len(valueList) / 2)
+            v = sum(valueList[midpoint-1:midpoint + 1]) / 2.0
+            print(valueList[midpoint-1:midpoint + 1])
+            print(v)
+            return v
 
     # Compatibility function, uses channel A version
     def get_value(self, times=3):
@@ -249,7 +255,7 @@ class HX711:
         backupReferenceUnit = self.get_reference_unit_A()
         self.set_reference_unit_A(1)
 
-        value = self.read_average(times)
+        value = self.read_median(times)
 
         if self.DEBUG_PRINTING:
             print("Tare A value:", value)

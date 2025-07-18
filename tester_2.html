@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>fff</title>
+</head>
+<body>
+<script>
+  let socket = new WebSocket("ws://gibotron3000:8765");
+
+socket.onopen = function(e) {
+  alert("[open] Connection established");
+  alert("Sending to server");
+  socket.send("My name is John");
+};
+</script>
+
+</body>
+</html>

@@ -7,11 +7,14 @@ import neopixel
 import board
 
 
+DEBUG_MODE = True
+
+
 class EComponent:
-    WEIGHT_CELL = 1
+    FLUSH_PUMP = 1
     MAIN_PUMP = 2
     VALVE = 3
-    FLUSH_PUMP = 4
+    WEIGHT_CELL = 4
 
 
 class ModulesController:
@@ -38,6 +41,7 @@ class ModulesController:
         self.sr_latch_pin = 12
         self.sr_clock_pin = 14
         self.shift_register = pi74HC595(self.sr_data_pin, self.sr_latch_pin, self.sr_clock_pin, self.nb_modules)
+        self.send_states()
 
         # weight_sensors
         self.ws_dout_pin = 9
@@ -53,36 +57,51 @@ class ModulesController:
 
         gpio.output(self.enable_pin, gpio.LOW)
 
+    def load_cell_offsets(self):
+        sm = StatesManager()
+
     def get_all_weights(self):
         return self.modules_weights
 
     # region register
     def set_main_pump_state(self, module, on):
+        if DEBUG_MODE:
+            print("::set_main_pump_state", module, on)
         # '-' first module is last to receive data
         self.modules_states[module * self.bits + EComponent.MAIN_PUMP] = on
 
     def set_flush_pump_state(self, module, on):
+        if DEBUG_MODE:
+            print("::set_flush_pump_state", module, on)
         self.modules_states[module * self.bits + EComponent.FLUSH_PUMP] = on
 
     def set_weight_cell_state(self, module, on):
+        if DEBUG_MODE:
+            print("::set_weight_cell_state", module, on)
         self.modules_states[module * self.bits + EComponent.WEIGHT_CELL] = on
 
     def set_valve_state(self, module, open):
+        if DEBUG_MODE:
+            print("::set_valve_state", module, open)
         self.modules_states[module * self.bits + EComponent.VALVE] = open
 
     def send_states(self):
+        # for i in range(4):
+        #     print([1 if x else 0 for x in self.modules_states][i*8:i*8+8])
         self.shift_register.set_by_list(self.modules_states[::-1])
     # endregion
 
     # region weight_cells
     def read_weight(self, module):
+        module = int(module)
+
         self.set_weight_cell_state(module, True)
         self.send_states()
         sm = StatesManager()
         sensor = HX711(self.ws_dout_pin, self.ws_clock_pin)
         sensor.set_reference_unit_A(sm.get_weight_cell_reference_unit(module))
         sensor.set_offset(sm.get_weight_cell_offset(module))
-        val = sensor.get_weight()
+        val = sensor.get_weight(10)
         self.modules_weights[module] = val
         self.set_weight_cell_state(module, False)
         self.send_states()
@@ -94,10 +113,15 @@ class ModulesController:
         return True
 
     def tare_weight_cell(self, module):
+        module = int(module)
+
         self.set_weight_cell_state(module, True)
         self.send_states()
         sm = StatesManager()
+        time.sleep(0.1)
         sensor = HX711(self.ws_dout_pin, self.ws_clock_pin)
+        sensor.set_reading_format("MSB", "MSB")
+        sensor.reset()
         sensor.set_reference_unit(sm.get_weight_cell_reference_unit(module))
         sensor.tare(10)
         sm.set_weight_cell_offset(module, sensor.OFFSET)
@@ -113,6 +137,10 @@ class ModulesController:
 
     # region serve
     def flush(self, module, pre_send=True, post_send=True):
+        if DEBUG_MODE:
+            print("flush", module, pre_send, post_send)
+        module = int(module)
+
         self.set_valve_state(module, open=True)
         self.set_flush_pump_state(module, on=True)
         if pre_send:
@@ -127,6 +155,10 @@ class ModulesController:
         return True
 
     def pump(self, module, _time, pre_send=True, post_send=True):
+        if DEBUG_MODE:
+            print("pump", module, _time, pre_send, post_send)
+
+        module = int(module)
         self.set_main_pump_state(module, on=True)
         if pre_send:
             self.send_states()
@@ -139,29 +171,38 @@ class ModulesController:
         return True
 
     def serve(self, module, quantity, post_send=True):
+        module = int(module)
         _time = quantity * StatesManager().get_pump_speed_ratio(module) * StatesManager().get_sec_per_liter()
 
         self.flush(module, post_send=False)
         self.pump(module, _time, post_send=False)
         self.flush(module, post_send=post_send)
 
-    def blend(self, mix, cup_size, status_callback):
+    def blend(self, data, status_callback):
+        # handle callback
+        mix, cup_size = data['ratios'], data['cup_size']
         for module, ratio in mix.items():
-            self.serve(module, cup_size * ratio, post_send=False)  # chain state send with other
+            self.serve(module, cup_size * ratio, post_send=False)
         self.send_states()
         return True
 
-    def faster_blend(self, mix, cup_size, status_callback):
+    def faster_blend(self, data, status_callback):
+        mix, cup_size = data['ratios'], data['cup_size']
         mix = list(mix.items())
 
-        module_0 = mix[0][0]
+        module_0 = int(mix[0][0])
         ratio_0 = mix[0][1]
+
         self.flush(module_0, post_send=False)
-        self.pump(module_0, cup_size * ratio_0, post_send=False)
+
+        _time = cup_size * ratio_0 * StatesManager().get_pump_speed_ratio(module_0) * StatesManager().get_sec_per_liter()
+        self.pump(module_0, _time, post_send=False)
 
         for i in range(1, len(mix)):
             prev_module, _ = mix[i-1]
             module, ratio = mix[i]
+            prev_module = int(prev_module)
+            module = int(module)
 
             # make both flush at the same time !
             # region flush
@@ -169,6 +210,7 @@ class ModulesController:
             self.set_flush_pump_state(prev_module, on=True)
             self.set_valve_state(module, open=True)
             self.set_flush_pump_state(module, on=True)
+            self.send_states()
 
             time.sleep(3)
 
@@ -176,11 +218,13 @@ class ModulesController:
             self.set_flush_pump_state(prev_module, on=False)
             self.set_valve_state(module, open=False)
             self.set_flush_pump_state(module, on=False)
+            self.send_states()
             # endregion
 
-            self.pump(module, cup_size * ratio)
+            _time = cup_size * ratio * StatesManager().get_pump_speed_ratio(module) * StatesManager().get_sec_per_liter()
+            self.pump(module, _time)
 
-        self.flush(mix[-1][0])
+        self.flush(int(mix[-1][0]))
         return True
     # endregion
 

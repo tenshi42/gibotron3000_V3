@@ -61,6 +61,8 @@ def threat_message(client, server, message):
         send_message(server, 'status', data)
         print('status', data)
 
+    print("msg : ", message_type)
+
     if message_type == 'echo':
         send_message(server, 'echo', packet)
 

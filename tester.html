@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoBarMaid WebSocket Tester</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .btn {
+            @apply w-full bg-indigo-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-opacity-75 transition-colors duration-200;
+        }
+        .btn-red {
+            @apply bg-red-600 hover:bg-red-700 focus:ring-red-500;
+        }
+        .btn-gray {
+            @apply bg-gray-500 hover:bg-gray-600 focus:ring-gray-400;
+        }
+        .input-field {
+            @apply mt-1 block w-full px-3 py-2 bg-white border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm;
+        }
+        .card {
+            @apply bg-white p-6 rounded-xl shadow-lg;
+        }
+        .card-title {
+            @apply text-xl font-bold mb-4 text-gray-800 border-b pb-2;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900">
+
+    <div class="container mx-auto p-4 lg:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-indigo-600">AutoBarMaid WebSocket Tester</h1>
+            <p class="text-gray-600 mt-2">A simple interface to test all client-to-server messages.</p>
+        </header>
+
+        <!-- Connection Controls -->
+        <div class="card mb-8">
+            <h2 class="card-title">Connection</h2>
+            <div class="flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-4">
+                <div class="w-full sm:w-auto flex-grow">
+                    <label for="ws-url" class="block text-sm font-medium text-gray-700">WebSocket URL</label>
+                    <input type="text" id="ws-url" class="input-field" value="ws://gibotron3000:8765">
+                </div>
+                <div class="w-full sm:w-auto pt-0 sm:pt-5">
+                    <button id="connect-btn" class="btn">Connect</button>
+                </div>
+                <div class="w-full sm:w-auto pt-0 sm:pt-5">
+                     <button id="disconnect-btn" class="btn btn-red" disabled>Disconnect</button>
+                </div>
+                <div class="flex items-center space-x-2 pt-0 sm:pt-5">
+                    <span id="status-indicator" class="h-4 w-4 rounded-full bg-gray-400"></span>
+                    <span id="status-text" class="font-semibold text-gray-600">Disconnected</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Controls Column -->
+            <div class="flex flex-col space-y-8">
+
+                <!-- Generic Actions -->
+                <div class="card">
+                    <h2 class="card-title">Generic Actions</h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <button class="btn" onclick="sendMessage('get_pumps_states')">Get Pump States</button>
+                        <button class="btn" onclick="sendMessage('get_config')">Get Config</button>
+                        <button class="btn" onclick="sendMessage('get_blend_status')">Get Blend Status</button>
+                        <div>
+                            <input type="text" id="echo-data" class="input-field" placeholder="Echo message">
+                            <button class="btn mt-2" onclick="sendEcho()">Echo</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Blending Actions -->
+                <div class="card">
+                    <h2 class="card-title">Blending</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="cup-size" class="block text-sm font-medium text-gray-700">Cup Size (Liters)</label>
+                            <input type="number" id="cup-size" class="input-field" value="0.04" step="0.01">
+                        </div>
+                        <div>
+                            <label for="ratios" class="block text-sm font-medium text-gray-700">Ratios (JSON)</label>
+                            <textarea id="ratios" class="input-field" rows="3">{"0": 0.5, "1": 0.5}</textarea>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <button class="btn" onclick="sendBlend('blend')">Blend</button>
+                            <button class="btn" onclick="sendBlend('faster_blend')">Faster Blend</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pump State & Config -->
+                <div class="card">
+                    <h2 class="card-title">Pump Configuration</h2>
+                    <div class="space-y-6">
+                        <!-- Set Pump State -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-3">Set Pump State</h3>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                <div class="p-2 border rounded-lg text-center"><p class="font-semibold">Pump 0</p><div class="grid grid-cols-2 gap-1 mt-1"><button class="btn !w-full !py-1 !text-xs" onclick="setPumpState(0, true)">ON</button><button class="btn !w-full !py-1 !text-xs btn-red" onclick="setPumpState(0, false)">OFF</button></div></div>
+                                <div class="p-2 border rounded-lg text-center"><p class="font-semibold">Pump 1</p><div class="grid grid-cols-2 gap-1 mt-1"><button class="btn !w-full !py-1 !text-xs" onclick="setPumpState(1, true)">ON</button><button class="btn !w-full !py-1 !text-xs btn-red" onclick="setPumpState(1, false)">OFF</button></div></div>
+                                <div class="p-2 border rounded-lg text-center"><p class="font-semibold">Pump 2</p><div class="grid grid-cols-2 gap-1 mt-1"><button class="btn !w-full !py-1 !text-xs" onclick="setPumpState(2, true)">ON</button><button class="btn !w-full !py-1 !text-xs btn-red" onclick="setPumpState(2, false)">OFF</button></div></div>
+                                <div class="p-2 border rounded-lg text-center"><p class="font-semibold">Pump 3</p><div class="grid grid-cols-2 gap-1 mt-1"><button class="btn !w-full !py-1 !text-xs" onclick="setPumpState(3, true)">ON</button><button class="btn !w-full !py-1 !text-xs btn-red" onclick="setPumpState(3, false)">OFF</button></div></div>
+                                <div class="p-2 border rounded-lg text-center"><p class="font-semibold">Pump 4</p><div class="grid grid-cols-2 gap-1 mt-1"><button class="btn !w-full !py-1 !text-xs" onclick="setPumpState(4, true)">ON</button><button class="btn !w-full !py-1 !text-xs btn-red" onclick="setPumpState(4, false)">OFF</button></div></div>
+                                <div class="p-2 border rounded-lg text-center"><p class="font-semibold">Pump 5</p><div class="grid grid-cols-2 gap-1 mt-1"><button class="btn !w-full !py-1 !text-xs" onclick="setPumpState(5, true)">ON</button><button class="btn !w-full !py-1 !text-xs btn-red" onclick="setPumpState(5, false)">OFF</button></div></div>
+                                <div class="p-2 border rounded-lg text-center"><p class="font-semibold">Pump 6</p><div class="grid grid-cols-2 gap-1 mt-1"><button class="btn !w-full !py-1 !text-xs" onclick="setPumpState(6, true)">ON</button><button class="btn !w-full !py-1 !text-xs btn-red" onclick="setPumpState(6, false)">OFF</button></div></div>
+                                <div class="p-2 border rounded-lg text-center"><p class="font-semibold">Pump 7</p><div class="grid grid-cols-2 gap-1 mt-1"><button class="btn !w-full !py-1 !text-xs" onclick="setPumpState(7, true)">ON</button><button class="btn !w-full !py-1 !text-xs btn-red" onclick="setPumpState(7, false)">OFF</button></div></div>
+                            </div>
+                        </div>
+                        <hr>
+                        <!-- Set Pump Speed Ratio -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-3">Set Pump Speed Ratios</h3>
+                            <div class="space-y-3">
+                                <div class="flex items-center gap-2 flex-wrap"><label class="font-medium w-20">Pump 0:</label><input type="number" id="speed-ratio-0" class="input-field !mt-0 flex-grow" value="1.0" step="0.1"><button class="btn !w-auto" onclick="setPumpSpeedRatio(0)">Set</button></div>
+                                <div class="flex items-center gap-2 flex-wrap"><label class="font-medium w-20">Pump 1:</label><input type="number" id="speed-ratio-1" class="input-field !mt-0 flex-grow" value="1.0" step="0.1"><button class="btn !w-auto" onclick="setPumpSpeedRatio(1)">Set</button></div>
+                                <div class="flex items-center gap-2 flex-wrap"><label class="font-medium w-20">Pump 2:</label><input type="number" id="speed-ratio-2" class="input-field !mt-0 flex-grow" value="1.0" step="0.1"><button class="btn !w-auto" onclick="setPumpSpeedRatio(2)">Set</button></div>
+                                <div class="flex items-center gap-2 flex-wrap"><label class="font-medium w-20">Pump 3:</label><input type="number" id="speed-ratio-3" class="input-field !mt-0 flex-grow" value="1.0" step="0.1"><button class="btn !w-auto" onclick="setPumpSpeedRatio(3)">Set</button></div>
+                                <div class="flex items-center gap-2 flex-wrap"><label class="font-medium w-20">Pump 4:</label><input type="number" id="speed-ratio-4" class="input-field !mt-0 flex-grow" value="1.0" step="0.1"><button class="btn !w-auto" onclick="setPumpSpeedRatio(4)">Set</button></div>
+                                <div class="flex items-center gap-2 flex-wrap"><label class="font-medium w-20">Pump 5:</label><input type="number" id="speed-ratio-5" class="input-field !mt-0 flex-grow" value="1.0" step="0.1"><button class="btn !w-auto" onclick="setPumpSpeedRatio(5)">Set</button></div>
+                                <div class="flex items-center gap-2 flex-wrap"><label class="font-medium w-20">Pump 6:</label><input type="number" id="speed-ratio-6" class="input-field !mt-0 flex-grow" value="1.0" step="0.1"><button class="btn !w-auto" onclick="setPumpSpeedRatio(6)">Set</button></div>
+                                <div class="flex items-center gap-2 flex-wrap"><label class="font-medium w-20">Pump 7:</label><input type="number" id="speed-ratio-7" class="input-field !mt-0 flex-grow" value="1.0" step="0.1"><button class="btn !w-auto" onclick="setPumpSpeedRatio(7)">Set</button></div>
+                            </div>
+                        </div>
+                        <hr>
+                        <!-- Set Sec/Liter -->
+                        <div>
+                            <label for="sec-per-liter" class="block text-sm font-medium text-gray-700">Seconds per Liter</label>
+                            <div class="flex items-center gap-4 mt-1">
+                                <input type="number" id="sec-per-liter" class="input-field !mt-0" value="100">
+                                <button class="btn flex-shrink-0" onclick="setSecPerLiter()">Set Sec/Liter</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weight Cell Actions -->
+                <div class="card">
+                    <h2 class="card-title">Weight Cell Actions</h2>
+                    <div class="space-y-6">
+                        <!-- Global Actions -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-3">Global Actions</h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                <button class="btn" onclick="sendMessage('tare_all_cell')">Tare All</button>
+                                <button class="btn" onclick="sendMessage('read_all_weights')">Read All</button>
+                                <button class="btn" onclick="sendMessage('get_all_weights')">Get All</button>
+                            </div>
+                        </div>
+                        <hr>
+                        <!-- Tare Individual -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-3">Tare Individual Cell</h3>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button class="btn" onclick="tareCell(0)">Tare 0</button>
+                                <button class="btn" onclick="tareCell(1)">Tare 1</button>
+                                <button class="btn" onclick="tareCell(2)">Tare 2</button>
+                                <button class="btn" onclick="tareCell(3)">Tare 3</button>
+                                <button class="btn" onclick="tareCell(4)">Tare 4</button>
+                                <button class="btn" onclick="tareCell(5)">Tare 5</button>
+                                <button class="btn" onclick="tareCell(6)">Tare 6</button>
+                                <button class="btn" onclick="tareCell(7)">Tare 7</button>
+                            </div>
+                        </div>
+                        <hr>
+                        <!-- Read Individual -->
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-700 mb-3">Read Individual Weight</h3>
+                            <div class="grid grid-cols-4 gap-2">
+                                <button class="btn" onclick="readWeight(0)">Read 0</button>
+                                <button class="btn" onclick="readWeight(1)">Read 1</button>
+                                <button class="btn" onclick="readWeight(2)">Read 2</button>
+                                <button class="btn" onclick="readWeight(3)">Read 3</button>
+                                <button class="btn" onclick="readWeight(4)">Read 4</button>
+                                <button class="btn" onclick="readWeight(5)">Read 5</button>
+                                <button class="btn" onclick="readWeight(6)">Read 6</button>
+                                <button class="btn" onclick="readWeight(7)">Read 7</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Log Column -->
+            <div class="card">
+                <div class="flex justify-between items-center border-b pb-2 mb-4">
+                    <h2 class="text-xl font-bold text-gray-800">Server Messages</h2>
+                    <button id="clear-log-btn" class="btn btn-gray text-sm py-1 px-3">Clear Log</button>
+                </div>
+                <pre id="log" class="bg-gray-800 text-white p-4 rounded-lg h-96 lg:h-[calc(100vh-18rem)] overflow-y-auto text-sm whitespace-pre-wrap break-all"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let websocket = null;
+
+        const connectBtn = document.getElementById('connect-btn');
+        const disconnectBtn = document.getElementById('disconnect-btn');
+        const wsUrlInput = document.getElementById('ws-url');
+        const statusIndicator = document.getElementById('status-indicator');
+        const statusText = document.getElementById('status-text');
+        const logContainer = document.getElementById('log');
+        const clearLogBtn = document.getElementById('clear-log-btn');
+
+        // --- Connection Management ---
+        connectBtn.addEventListener('click', () => {
+            const url = wsUrlInput.value;
+            if (!url) {
+                logMessage('Client', 'WebSocket URL cannot be empty.');
+                return;
+            }
+            logMessage('Client', `Connecting to ${url}...`);
+            websocket = new WebSocket(url);
+
+            websocket.onopen = () => {
+                logMessage('Client', 'Connection established.');
+                updateStatus(true);
+            };
+
+            websocket.onclose = (event) => {
+                logMessage('Client', `Connection closed. Code: ${event.code}, Reason: ${event.reason || 'No reason given'}`);
+                updateStatus(false);
+                websocket = null;
+            };
+
+            websocket.onerror = (error) => {
+                logMessage('Client', 'WebSocket error occurred.');
+                console.error('WebSocket Error:', error);
+                updateStatus(false);
+            };
+
+            websocket.onmessage = (event) => {
+                logMessage('Server', event.data);
+            };
+        });
+
+        disconnectBtn.addEventListener('click', () => {
+            if (websocket) {
+                websocket.close();
+            }
+        });
+
+        clearLogBtn.addEventListener('click', () => {
+            logContainer.innerHTML = '';
+        });
+
+        function updateStatus(isConnected) {
+            if (isConnected) {
+                statusIndicator.classList.remove('bg-gray-400', 'bg-red-500');
+                statusIndicator.classList.add('bg-green-500');
+                statusText.textContent = 'Connected';
+                statusText.classList.remove('text-gray-600', 'text-red-600');
+                statusText.classList.add('text-green-600');
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                wsUrlInput.disabled = true;
+            } else {
+                statusIndicator.classList.remove('bg-green-500');
+                statusIndicator.classList.add('bg-red-500');
+                statusText.textContent = 'Disconnected';
+                statusText.classList.remove('text-green-600');
+                statusText.classList.add('text-red-600');
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                wsUrlInput.disabled = false;
+            }
+        }
+
+        // --- Message Logging ---
+        function logMessage(source, message) {
+            const time = new Date().toLocaleTimeString();
+            let formattedMessage = message;
+            try {
+                // Try to parse and pretty-print if it's JSON
+                const parsed = JSON.parse(message);
+                formattedMessage = JSON.stringify(parsed, null, 2);
+            } catch (e) {
+                // Not a JSON string, leave as is
+            }
+
+            const sourceColor = source === 'Server' ? 'text-cyan-400' : 'text-yellow-400';
+            logContainer.innerHTML += `<span class="text-gray-500">[${time}]</span> <span class="${sourceColor}">${source}:</span>\n${formattedMessage}\n\n`;
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        // --- Message Sending Functions ---
+        function sendMessage(type, data = null) {
+            if (!websocket || websocket.readyState !== WebSocket.OPEN) {
+                logMessage('Client', 'Not connected. Please connect first.');
+                return;
+            }
+            const message = { type, data };
+            const jsonMessage = JSON.stringify(message);
+            logMessage('Client', jsonMessage);
+            websocket.send(jsonMessage);
+        }
+
+        function sendEcho() {
+            const data = document.getElementById('echo-data').value;
+            sendMessage('echo', { msg: data });
+        }
+
+        function sendBlend(type) {
+            try {
+                const cup_size = parseFloat(document.getElementById('cup-size').value);
+                const ratios = JSON.parse(document.getElementById('ratios').value);
+                sendMessage(type, { cup_size, ratios });
+            } catch (e) {
+                logMessage('Client', 'Error: Invalid JSON in ratios field.');
+                console.error(e);
+            }
+        }
+
+        function setPumpState(pump_index, state) {
+            sendMessage('set_pump_state', { pump_index, state });
+        }
+
+        function setSecPerLiter() {
+            const sec_per_liter = parseInt(document.getElementById('sec-per-liter').value);
+            sendMessage('set_sec_per_liter', { sec_per_liter });
+        }
+
+        function setPumpSpeedRatio(pump_index) {
+            const speed_ratio_input = document.getElementById(`speed-ratio-${pump_index}`);
+            const speed_ratio = parseFloat(speed_ratio_input.value);
+             if (isNaN(speed_ratio)) {
+                logMessage('Client', `Invalid speed ratio for pump ${pump_index}.`);
+                return;
+            }
+            sendMessage('set_pump_speed_ratio', { pump_index, speed_ratio });
+        }
+
+        function tareCell(pump_index) {
+            sendMessage('tare_cell', { pump_index });
+        }
+
+        function readWeight(pump_index) {
+            sendMessage('read_weight', { pump_index });
+        }
+
+        // Initialize status on page load
+        updateStatus(false);
+    </script>
+
+</body>
+</html>
