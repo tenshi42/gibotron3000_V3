@@ -18,7 +18,7 @@ class HX711:
 
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.PD_SCK, GPIO.OUT)
-        GPIO.setup(self.DOUT, GPIO.IN)
+        GPIO.setup(self.DOUT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
         self.GAIN = 0
 
@@ -330,7 +330,6 @@ class HX711:
         # Make sure we aren't asked to use an invalid reference unit.
         if reference_unit == 0:
             raise ValueError("HX711::set_reference_unit_A() can't accept 0 as a reference unit!")
-            return
 
         self.REFERENCE_UNIT = reference_unit
 
@@ -338,12 +337,11 @@ class HX711:
         # Make sure we aren't asked to use an invalid reference unit.
         if reference_unit == 0:
             raise ValueError("HX711::set_reference_unit_A() can't accept 0 as a reference unit!")
-            return
 
         self.REFERENCE_UNIT_B = reference_unit
 
     def get_reference_unit(self):
-        return get_reference_unit_A()
+        return self.get_reference_unit_A()
 
     def get_reference_unit_A(self):
         return self.REFERENCE_UNIT
@@ -394,9 +392,13 @@ class HX711:
         self.power_down()
         self.power_up()
 
+    def stop(self):
+        GPIO.setup(self.PD_SCK, GPIO.OUT)
+        GPIO.output(self.PD_SCK, GPIO.LOW)
+        GPIO.setup(self.DOUT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
 
-def hx711_add_event_detect(hx711_instance, event_callback):
-    GPIO.add_event_detect(self.DOUT, GPIO.FALLING,
-                          callback=event_callback)
+    def read_dout_state(self):
+        return GPIO.input(self.DOUT)
+
 
 # EOF - hx711.py

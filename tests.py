@@ -1,5 +1,7 @@
 import time
 
+from RPi import GPIO
+
 from HX711_2 import HX711
 import RPi.GPIO as gpio
 
@@ -43,10 +45,21 @@ def aatest_module_weight():
     print(module.get_all_weights())
 
 
+def aatest_pute():
+    GPIO.setup(9, GPIO.IN)
+    GPIO.setup(11, GPIO.IN)
+
+    time.sleep(20)
+
+    GPIO.setup(11, GPIO.OUT)
+    GPIO.output(11, GPIO.LOW)
+
+
 if __name__ == '__main__':
-    aatest_cell()
+    # aatest_cell()
     # aatest_module()
     # aatest_module_weight()
+    aatest_pute()
 
     """a = [1,2,3,4,5]
     print(a)

@@ -61,7 +61,7 @@ def threat_message(client, server, message):
         send_message(server, 'status', data)
         print('status', data)
 
-    print("msg : ", message_type)
+        print(f"message_type : {message_type}")
 
     if message_type == 'echo':
         send_message(server, 'echo', packet)
@@ -74,6 +74,7 @@ def threat_message(client, server, message):
         send_message(server, 'status', {"initial_time": module_controller.initial_blend_time, "remaining_time": module_controller.remaining_blend_time})
 
     elif message_type == "get_pumps_states":
+        print("ok")
         send_message(server, 'pumps_states', StatesManager().get_all_full_pump_states())
     elif message_type == "set_pump_state":
         pump_index = packet['data']['pump_index']
@@ -99,6 +100,8 @@ def threat_message(client, server, message):
         ok = if_not_busy(server, module_controller.tare_weight_cell, pump_index)
         if ok:
             send_message(server, "tare_cell", {"pump_index": pump_index})
+        else:
+            send_message(server, "tare_cell_failed", {"pump_index": pump_index})
     elif message_type == "tare_all_cell":
         ok = if_not_busy(server, module_controller.tare_all_cells)
         if ok:
@@ -119,11 +122,15 @@ def threat_message(client, server, message):
         if weights:
             send_message(server, "get_all_weights", weights)
 
+    elif message_type == "read_dout":
+        module_controller.read_dout()
+
     else:
         send_message(server, 'unknown_message_type', {"message": f"given message type '{message_type}' is unknown"})
 
 
 def main():
+    print("ready")
     server = WebsocketServer(host=ADDR, port=PORT, loglevel=logging.INFO)
     server.set_fn_new_client(new_client)
     server.set_fn_message_received(thread_threat_message)

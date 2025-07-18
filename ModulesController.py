@@ -1,4 +1,6 @@
 import time
+
+from RPi import GPIO
 from pi74HC595 import pi74HC595
 import RPi.GPIO as gpio
 from HX711_2 import HX711
@@ -57,8 +59,18 @@ class ModulesController:
 
         gpio.output(self.enable_pin, gpio.LOW)
 
-    def load_cell_offsets(self):
-        sm = StatesManager()
+        self.init_load_cells()
+
+    def read_dout(self):
+        GPIO.setup(self.ws_dout_pin, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        print(f"dout : {GPIO.input(self.ws_dout_pin)}")
+        # GPIO.cleanup(self.ws_dout_pin)
+
+    def init_load_cells(self):
+        for i in range(self.nb_modules):
+            if StatesManager().get_pump_enabled(i):
+                StatesManager().set_pump_enabled(i, StatesManager().get_weight_cell_offset(i) != 0)
+        self.read_all_weights()
 
     def get_all_weights(self):
         return self.modules_weights
@@ -86,8 +98,8 @@ class ModulesController:
         self.modules_states[module * self.bits + EComponent.VALVE] = open
 
     def send_states(self):
-        # for i in range(4):
-        #     print([1 if x else 0 for x in self.modules_states][i*8:i*8+8])
+        for i in range(4):
+            print([1 if x else 0 for x in self.modules_states][i*8:i*8+8])
         self.shift_register.set_by_list(self.modules_states[::-1])
     # endregion
 
@@ -99,21 +111,33 @@ class ModulesController:
         self.send_states()
         sm = StatesManager()
         sensor = HX711(self.ws_dout_pin, self.ws_clock_pin)
+        sensor.set_reading_format("MSB", "MSB")
+        sensor.reset()
         sensor.set_reference_unit_A(sm.get_weight_cell_reference_unit(module))
         sensor.set_offset(sm.get_weight_cell_offset(module))
         val = sensor.get_weight(10)
+        sensor.power_down()
+        sensor.stop()
         self.modules_weights[module] = val
         self.set_weight_cell_state(module, False)
         self.send_states()
         return True
 
+    def read_some_weights(self, modules):
+        for i in modules:
+            self.read_weight(int(i))
+
     def read_all_weights(self):
         for i in range(self.nb_modules):
-            self.read_weight(i)
+            if StatesManager().get_pump_enabled(i):
+                self.read_weight(i)
         return True
 
     def tare_weight_cell(self, module):
         module = int(module)
+
+        if not StatesManager().get_pump_enabled(module):
+            return False
 
         self.set_weight_cell_state(module, True)
         self.send_states()
@@ -124,6 +148,8 @@ class ModulesController:
         sensor.reset()
         sensor.set_reference_unit(sm.get_weight_cell_reference_unit(module))
         sensor.tare(10)
+        sensor.power_down()
+        sensor.stop()
         sm.set_weight_cell_offset(module, sensor.OFFSET)
         self.set_weight_cell_state(module, False)
         self.send_states()
@@ -131,7 +157,8 @@ class ModulesController:
 
     def tare_all_cells(self):
         for i in range(self.nb_modules):
-            self.tare_weight_cell(i)
+            if StatesManager().get_pump_enabled(i):
+                self.tare_weight_cell(i)
         return True
     # endregion
 
@@ -184,6 +211,9 @@ class ModulesController:
         for module, ratio in mix.items():
             self.serve(module, cup_size * ratio, post_send=False)
         self.send_states()
+
+        self.read_some_weights(list(mix.keys()))
+
         return True
 
     def faster_blend(self, data, status_callback):
@@ -225,6 +255,9 @@ class ModulesController:
             self.pump(module, _time)
 
         self.flush(int(mix[-1][0]))
+
+        self.read_some_weights(list(data['ratios'].keys()))
+
         return True
     # endregion
 
